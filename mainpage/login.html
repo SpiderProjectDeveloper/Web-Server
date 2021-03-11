@@ -1,0 +1,124 @@
+<html>
+
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<title>Web SP Login</title>
+
+<link rel="stylesheet" type="text/css" href="/styles.css">
+
+<script type="text/javascript" src="/scripts.js"></script>
+
+</head>
+
+<body>
+
+<div id='header'>
+	<div id='header-lang'><span id='text-lang'>en</span></div>
+	<div id='header-logged'><div id='text-not-logged-in'>You are not logged in</div></div>
+</div>
+
+<div class='main'>
+
+	<h1 id='text-login-page-title'>Web SP Login</h1>
+
+	<div class='centered-container'>
+		<label for="user" id='text-user'>User:</label><br/>
+		<input type='text' name="user" id="user"><br/><br/>
+		
+		<label for="pass" id='text-pass'>Password:</label><br/>
+		<input type='password' name="pass" id="pass">
+
+		<div><div id='connectionError'><span id='text-connection-error'></span></div></div>
+		<div><div id='credentialsError'><span id='text-credentials-error'></span></div></div>
+		<div><div id='userNameError'><span id='text-user-name-error'></span></div></div>
+		<div><div id='passError'><span id='text-pass-error'></span></div></div>
+
+		<div>
+			<div id='login' class='button'>
+				<div id='text-login-button'>Login</div>
+			</div>
+		</div>
+		
+		<div><div id='loader' class='loader'></div></div>
+	</div>
+</div>
+
+<script>
+
+window.addEventListener('load', function() {
+		document.getElementById('login').onclick = function(e) {
+			login('errorMessage', 'loader', 'user', 'pass');			
+		}
+	});
+
+window.addEventListener('load', function() { handleLang();	});
+
+
+function login( errorMessageId, loaderId, userId,  passId ) {
+
+	let loaderEl = document.getElementById(loaderId);
+
+	let userEl = document.getElementById(userId);
+	let passEl = document.getElementById(passId);
+
+	let user = userEl.value.trim();
+	let pass = passEl.value.trim();
+
+	let xmlhttp = new XMLHttpRequest();
+	xmlhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ) {
+			if( loaderEl ) {
+				displayLoader(loaderEl, false);
+			}
+	    	if( this.status == 200 ) {
+		        if( this.responseText != "error" && this.responseText.length >= 40 ) {
+					setCookie( 'user', user );
+					setCookie( 'sess_id', this.responseText );
+					window.location.href = "/";
+		        } else {
+					displayErrorMessage( 'credentialsError' );
+		        }
+		    } else {
+					displayErrorMessage( 'connectionError' );
+		    }
+	    }
+	};
+
+	let dataToSend = {}; // Creating userData object with all the data entered but not synchronized
+
+	if( user.length == 0 ) {
+		displayErrorMessage( 'userNameError' );
+		return;
+	}
+	if( pass.length == 0 ) {
+		displayErrorMessage( 'passError' );
+		return;
+	}
+
+//console.log('user:'+user);
+//console.log('pass:'+pass);
+
+	let data = encodeURIComponent('user')+'='+encodeURIComponent(user)+'&'+encodeURIComponent('pass')+'='+encodeURIComponent(pass);
+
+//console.log('user:'+data);
+
+	displayErrorMessage('connectionError', false);
+	displayErrorMessage('credentialsError', false);
+	displayErrorMessage('userNameError', false);
+	displayErrorMessage('passError', false);
+
+	displayLoader( loaderEl, true );
+
+	xmlhttp.open("POST", '/.login', true);
+	xmlhttp.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xmlhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xmlhttp.send(data);
+}
+
+</script>
+
+</body>
+
+</html>

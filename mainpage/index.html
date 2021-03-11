@@ -1,0 +1,205 @@
+<html>
+
+<head>
+
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<title>Web SP Main Menu</title>
+
+<link rel="stylesheet" type="text/css" href="/styles.css">
+
+<script type="text/javascript" src="/scripts.js"></script>
+<script type="text/javascript" src="/server.js"></script>
+
+</head>
+
+<body>
+
+<div id='header'>
+	<div id='header-lang'><span id='text-lang'>en</span></div>
+	<div id='header-logged'><span id='text-user-name'></span> :: <a href='/.logout' id='a-logout'><span id='text-logout'></span> &#10132;</a></div>
+</div>
+
+
+<div class='main'>
+	<div id='connectionError'><span id='text-connection-error'></span></div>
+	<!--<h1 id='text-index-page-title'>Web SP Main Menu</h1>-->
+	<div class='centered-container'>
+		<h2 id='text-projects'>PROJECTS</h2>
+		<div id='projects' style='border:1px dotted #afafaf; border-radius:12px; padding:24px; overflow-y:auto; height:60vh;'>
+			<div id="loader" class="loader" style="display:inline-block;"></div>
+		</div>
+	</div>
+</div>
+
+<script>
+
+function loadContents() {
+	
+	let xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if (xhttp.readyState == 4 ) {
+			if( xhttp.status == 200 ) {
+				let data=null;
+				let errorParsingStatusData = false;	
+				let containerEl = document.getElementById('projects');
+				try {
+					data = JSON.parse(xhttp.responseText);
+				} catch(e) {
+					errorParsingStatusData = true;
+				}
+				if( errorParsingStatusData ) {
+					containerEl.innerHTML = '...';			
+				} else {
+					if( !('Projects' in data) ) {
+						containerEl.innerHTML = '...';			
+					} else {
+						if( data.Projects.length === 0 ) {
+							containerEl.innerHTML = '...';			
+						} else {
+							containerEl.innerHTML = '';					
+							for( let i = 0 ; i < data.Projects.length ; i++ ) {
+								let projectTitle = data.Projects[i];
+								let projectCode = data.Projects[i];
+								let projectId = data.Projects[i]; 
+							
+								let projectContainerEl = document.createElement('div');
+								containerEl.appendChild(projectContainerEl);
+								projectContainerEl.className = 'project';
+								if( i % 2 === 0 ) {
+									projectContainerEl.style.backgroundColor = '#f0f7ff';
+								}
+								
+								let projectTitleEl = document.createElement('div');
+								projectContainerEl.appendChild(projectTitleEl);
+								projectTitleEl.className = 'project-title';
+								let projectTitlePrefixId = 'projectTitlePrefix' + i;
+								projectTitleEl.innerHTML = `<span style='color:#7f7f7f;' id='${projectTitlePrefixId}'>&plus;&nbsp;</span>${projectTitle}`;
+
+								let projectMenuEl = document.createElement('div');
+								projectContainerEl.appendChild(projectMenuEl);
+								projectMenuEl.className = 'project-menu';
+								projectMenuEl.style.display = 'none';
+								let l = ('Actions' in data) ? data.Actions.length : 0;
+								for( let j = 0 ; j < l ; j++ ) {
+									let aEl = document.createElement('a');
+									aEl.appendChild( document.createTextNode( data.Actions[j].Name ) );
+									aEl.className = 'project-menu-a';
+									let dir;
+									if( data.Actions[j].Command === 'OpenGanttOper' ) {
+										dir = 'gantt';
+									} else if( data.Actions[j].Command === 'OpenDashboard' ) {
+										dir = 'dashboard';
+									}
+									let href = `/${dir}/index.html?${projectId}`;
+									aEl.href = href;
+									aEl.onclick = function(e) { e.preventDefault(); checkAuthorizedAndProceed( href ); };
+									projectMenuEl.appendChild(aEl);
+									projectMenuEl.appendChild(document.createElement('br'));
+								}
+
+								projectTitleEl.onclick = function(e){
+									if( projectMenuEl.style.display==='none' ) {
+										projectMenuEl.style.display = 'block';
+										document.getElementById(projectTitlePrefixId).innerHTML = '&minus;&nbsp;';
+									} else {
+										projectMenuEl.style.display = 'none';
+										document.getElementById(projectTitlePrefixId).innerHTML = '&plus;&nbsp;';
+									}
+								};				
+
+							}
+						}
+					}
+				}
+            } 
+	    }
+	}
+	xhttp.open( 'GET', '/.contents', true );
+    xhttp.send();
+}
+
+/*
+function loadContents() {
+	let sectionIds = [ 'gantt', 'input', 'dashboard' ]
+	let url = '/.contents';
+	let sectionContainerEl = null;
+	fetch( url ).then(data => data.json()).then( function(data) { 
+		for( let i = 0 ; i < sectionIds.length ; i++ ) {
+			let sectionId = sectionIds[i];
+			if( !(sectionId in data) )
+				continue;
+			sectionContainerEl = document.getElementById(sectionId);
+			if( !sectionContainerEl ) 
+				continue;
+		
+			let html = '';
+			let d = data[sectionId];
+			if( d.length == 0 ) {
+				sectionContainerEl.innerHTML = '...';			
+				continue;
+			}
+			sectionContainerEl.innerHTML = '';
+			for( let j = 0 ; j < d.length ; j++ ) {
+				let aEl = document.createElement('a');
+				aEl.appendChild( document.createTextNode(d[j].title) );
+				let href = `/${sectionId}/index.html?${d[j].id}`;
+				aEl.href = href;
+				aEl.onclick = function(e) { e.preventDefault(); checkAuthorizedAndProceed( href ); };
+				sectionContainerEl.appendChild(aEl);
+				sectionContainerEl.appendChild(document.createElement('br'));
+			}
+			//elem.innerHTML=html; 
+			
+		}
+	}).catch( function(e) { console.log(e); } );
+}
+*/
+
+function checkAvailabilityAndProceed(url, clearCookie=false) {	
+	displayErrorMessage('connectionError', false);
+	checkServer( 2, function(available, notUsed) {
+		if( !available ) {
+			displayErrorMessage('connectionError');
+		} else {
+			if( clearCookie ) {
+				deleteCookie('user');
+				deleteCookie('sess_id');
+			}
+			window.location.href = url;
+		}
+	});	
+}
+
+
+function checkAuthorizedAndProceed(url) {	
+	displayErrorMessage('connectionError', false);
+	checkServer( 2, function(available, authorized) {
+		if( !available ) {
+			displayErrorMessage('connectionError');
+		} else {
+			if( !authorized )
+				window.location.href = '/';
+			else
+				window.open(url);
+		}
+	});	
+}
+
+window.addEventListener('load', function() { 
+	let logoutEl = document.getElementById('a-logout');
+	if( logoutEl ) {
+		logoutEl.onclick = function(e) { e.preventDefault(); checkAvailabilityAndProceed('/.logout', true); };		
+	}
+});
+
+window.addEventListener( 'load', function() { loadContents(); } );
+
+window.addEventListener('load', function() { handleLang(); });
+
+</script>
+
+</body>
+
+</html>
