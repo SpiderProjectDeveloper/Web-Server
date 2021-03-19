@@ -44,11 +44,8 @@ int start( StartServerData *ssd, callback_ptr callback ) {
     		return -1;
         }
 	}
-    if( auth_set_session_path(ssd->HtmlPath, SRV_SESSIONF_FILE_NAME) < 0 ) {
-        return -1;
-    }
 
-    _th_manager_on = true;	
+  _th_manager_on = true;	
 	std::thread thm(thread_manager_start);	
 	thm.detach();
 

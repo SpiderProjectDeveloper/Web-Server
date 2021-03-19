@@ -9,14 +9,13 @@ static char _image_file_name_buf[_html_file_path_buf_size+1];
 static constexpr int _content_to_serve_buf_size = 10000;
 static char _content_to_serve_buf[ _content_to_serve_buf_size+1];
 
-static constexpr int _max_response_size = 99999999;
-static constexpr int _max_response_size_digits = 8;
+//static constexpr int _max_response_size = 99999999;
+//static constexpr int _max_response_size_digits = 8;
 
-static constexpr int _mime_buf_size = MIME_BUF_SIZE;
-static char _mime_buf[_mime_buf_size+1];
+static char _mime_buf[MIME_BUF_SIZE + 1];
 
-static constexpr char _http_header_template[] = "HTTP/1.1 200 OK\r\nVersion: HTTP/1.1\r\nContent-Type:%s\r\nContent-Length:%lu\r\n\r\n";
-static constexpr int _http_header_buf_size = sizeof(_http_header_template) + _mime_buf_size + _max_response_size_digits; 
+//static constexpr char _http_header_template[] = "HTTP/1.1 200 OK\r\nVersion: HTTP/1.1\r\nContent-Type:%s\r\nContent-Length:%lu\r\n\r\n";
+//static constexpr int _http_header_buf_size = sizeof(_http_header_template) + MIME_BUF_SIZE + _max_response_size_digits; 
 
 static constexpr char _http_redirect_template[] = "HTTP/1.1 302 Found\r\nLocation: %s\r\n\r\n";
 
@@ -32,44 +31,6 @@ static constexpr char _http_header_failed_to_serve[] = "HTTP/1.1 501 Internal Se
 static constexpr char _http_ok_options_header[] = 
 		"HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
 		"Access-Control-Allow-Headers: Content-Type\r\n\r\n";
-
-class ResponseWrapper {
-	public:
-	char header[_http_header_buf_size+1];
-	char *body;
-	char *body_allocated;
-	int body_len;
-
-	ResponseWrapper(): body(nullptr), body_allocated(nullptr), body_len(0) {
-		header[0] = '\x0';
-	}	
-
-	~ResponseWrapper() {
-		if( body_allocated != nullptr ) {
-			delete [] body;
-		}
-	}	
-};
-
-class ServerDataWrapper {
-	public:
-
-	ServerData sd;
-	
-	ServerDataWrapper() {
-		sd.user = nullptr;
-		sd.message = nullptr;
-		sd.sp_response_buf = nullptr;
-		sd.sp_free_response_buf = false;
-  		sd.sp_response_is_file = false;
-	}
-
-	~ServerDataWrapper() {
-		if( sd.sp_free_response_buf == true ) {
-			delete [] sd.sp_response_buf;
-		}
-	}
-};
 
 static void readHtmlFileAndPrepareResponse( char *file_name, char *html_source_dir, ResponseWrapper &response );
 static void querySPAndPrepareResponse( callback_ptr callback, char *uri, char *sess_id, char *user, 
@@ -109,12 +70,6 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 	char *sess_id = nullptr;
 	char *user = nullptr;
 
-	// Protect against reading sess file. We do not need it anymore? 
-    if( strncmp(&uri[1], SRV_SESSIONF_FILE_NAME, strlen(SRV_SESSIONF_FILE_NAME)) == 0 ) {
-		send(client_socket, _http_empty_message, strlen(_http_empty_message), 0);
-		return;        
-    }
-	
 	if( is_options ) { // An OPTIONS request - allowing all
 		send(client_socket, _http_ok_options_header, strlen(_http_ok_options_header), 0);
 		return;
@@ -125,14 +80,17 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 		return;
 	}				
 
-	static char cookie_sess_id[ AUTH_SESS_ID_LEN + 1 ];
-	static char cookie_user[ AUTH_USER_MAX_LEN + 1 ];
-	static char post_user[ AUTH_USER_MAX_LEN + 1 ];
-	static char post_pass[ AUTH_USER_MAX_LEN + 1 ];
+	ResponseWrapper response;
+	ServerDataWrapper sdw;
+
+	static char cookie_sess_id[ SRV_SESS_ID_LEN + 1 ];
+	static char cookie_user[ SRV_USER_MAX_LEN + 1 ];
+	static char post_user[ SRV_USER_MAX_LEN + 1 ];
+	static char post_pass[ SRV_USER_MAX_LEN + 1 ];
 	
 	if( strcmp(uri,"/.check_authorized") == 0 ) { 	// A system message to check if user is authorized or not.
-		get_user_and_session_from_cookie( socket_request_buf, cookie_user, AUTH_USER_MAX_LEN, cookie_sess_id, AUTH_SESS_ID_LEN );
-		if( auth_confirm(cookie_user, cookie_sess_id, true) ) {
+		get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
+		if( server_is_logged( sdw, cookie_sess_id, callback ) ) {
 			send(client_socket, _http_authorized, strlen(_http_authorized), 0);
 		} else {
 			send(client_socket, _http_not_authorized, strlen(_http_not_authorized), 0);
@@ -141,46 +99,32 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 	}		
 
 	if( strcmp(uri,"/.login") == 0 ) { 	// A login try?
-        bool logged_in = false;
+    bool logged_in = false;
 		if( post != nullptr ) {
-			get_user_and_pass_from_post( post, post_user, AUTH_USER_MAX_LEN, post_pass, AUTH_USER_MAX_LEN );
-    		try {
-	            ServerData sd;
-                sd.user = post_user;
-                sd.message_id = SERVER_LOGIN;
-                sd.message = post_pass;
-		        int callback_return = callback( &sd );
-            	if( sd.sp_response_buf != nullptr && callback_return >= 0 && sd.sp_response_buf_size > 0 ) {
-                    error_message("\n\nLOGIN?\n", sd.sp_response_buf);
-                    if( sd.sp_response_buf[0] == '1' ) {
-             			sess_id = auth_create_session_id(post_user, post_pass);
-                        if( sess_id != nullptr )
-                            logged_in = true;
-                    }
-                }
-		    } catch (...) {;}
-        }
-        if( logged_in && sess_id != nullptr ) {  	
-		    sprintf_s( _content_to_serve_buf, _content_to_serve_buf_size, _http_header_template, "text/plain", strlen(sess_id) );
+			get_user_and_pass_from_post( post, post_user, SRV_USER_MAX_LEN, post_pass, SRV_USER_MAX_LEN );
+			sess_id = server_login( sdw, post_user, post_pass, callback );
+			if( sess_id != nullptr ) {
+				logged_in = true;
+			}
+		}
+		if( logged_in && sess_id != nullptr ) {  	
+			sprintf_s( _content_to_serve_buf, _content_to_serve_buf_size, _http_header_template, "text/plain", strlen(sess_id) );
 			strcat_s( _content_to_serve_buf, _content_to_serve_buf_size, sess_id );
 			send(client_socket, _content_to_serve_buf, strlen(_content_to_serve_buf), 0);
-        } else {
-    		sprintf_s( _content_to_serve_buf, _content_to_serve_buf_size, _http_header_template, "text/plain", 0 );
-	    	send(client_socket, _content_to_serve_buf, strlen(_content_to_serve_buf), 0);
-        }
+		} else {
+			sprintf_s( _content_to_serve_buf, _content_to_serve_buf_size, _http_header_template, "text/plain", 0 );
+			send(client_socket, _content_to_serve_buf, strlen(_content_to_serve_buf), 0);
+		}
 		return;
 	} 
 	
 	if( strcmp(uri,"/.logout") == 0 ) { 	// Logging out?
-		get_user_and_session_from_cookie( socket_request_buf, cookie_user, AUTH_USER_MAX_LEN, cookie_sess_id, AUTH_SESS_ID_LEN );
-		auth_logout(cookie_user, cookie_sess_id);
+		get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
+		server_logout(sdw, cookie_sess_id, callback);
 		send_redirect(client_socket, "/login.html");  // ... redirecting	
 		return;
 	}
 			
-	ResponseWrapper response;
-	ServerDataWrapper sdw;
-
 	if( strcmp(uri, "/") == 0 ) {
 		strcpy(uri, "/index.html");
 	}
@@ -198,8 +142,8 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 		} else {
 			is_update_session = true;
 		}
-		get_user_and_session_from_cookie( socket_request_buf, cookie_user, AUTH_USER_MAX_LEN, cookie_sess_id, AUTH_SESS_ID_LEN );
-		if( !auth_confirm(cookie_user, cookie_sess_id, is_update_session) ) {
+		get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
+		if( !server_is_logged( sdw, cookie_sess_id, callback, is_update_session ) ) {
 			if( !is_update_session ) { 	
 				send(client_socket, _http_synchro_not_authorized, strlen(_http_synchro_not_authorized), 0);
 			} else {
@@ -226,8 +170,9 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 			}
 		}
 		if( is_auth_required ) {
-			get_user_and_session_from_cookie( socket_request_buf, cookie_user, AUTH_USER_MAX_LEN, cookie_sess_id, AUTH_SESS_ID_LEN );
-			if( !auth_confirm(cookie_user, cookie_sess_id, true) ) {
+			get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
+			error_message("server: is logged?");
+			if( !server_is_logged(sdw, cookie_sess_id, callback) ) {
 				if( is_html_request(uri) ) { 	// If it is an html request...
 					send_redirect(client_socket, "/login.html");  				// ... redirectingto login.html
 				} else { // Other requests - sending "Bad Request"				
@@ -354,6 +299,12 @@ static void querySPAndPrepareResponse(
 		callback_return = callback( &sdw.sd );
 		binary_data_requested = true;
 	} 
+	else if( strcmp( uri, "/.get_project_props" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_GET_PROJECT_PROPS;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+		binary_data_requested = true;
+	} 
 
 	if( sdw.sd.sp_response_buf == nullptr || 	// Might happen if mistakenly left as nullptr in SP.
 		callback_return < 0 || sdw.sd.sp_response_buf_size == 0 || // An error 
@@ -365,9 +316,9 @@ static void querySPAndPrepareResponse(
 		readHtmlFileAndPrepareResponse( sdw.sd.sp_response_buf, nullptr, response );
 	} else {
 		if( binary_data_requested ) { 	// An image? (or other binary data for future use)
-			set_mime_type(uri, _mime_buf, _mime_buf_size);
+			set_mime_type(uri, _mime_buf, MIME_BUF_SIZE);
 		} else { 	// 
-			strcpy_s( _mime_buf, _mime_buf_size, "text/json; charset=utf-8" );
+			strcpy_s( _mime_buf, MIME_BUF_SIZE, "text/json; charset=utf-8" );
 		}
 		sprintf_s( response.header, _http_header_buf_size, 
 			_http_header_template, _mime_buf, (unsigned long)sdw.sd.sp_response_buf_size );
@@ -401,7 +352,7 @@ static void readHtmlFileAndPrepareResponse( char *file_name, char *html_source_d
 		fin.seekg(0, std::ios::beg);
 
 		if( file_size > 0 ) {
-			set_mime_type(file_name, _mime_buf, _mime_buf_size);	//
+			set_mime_type(file_name, _mime_buf, MIME_BUF_SIZE);	//
 			if( file_size <= _content_to_serve_buf_size ) { 	// The static buffer is big enough...
 				fin.read(_content_to_serve_buf, file_size); 
 				if( fin.gcount() == file_size ) {

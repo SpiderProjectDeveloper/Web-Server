@@ -15,16 +15,16 @@ int decode_uri( char *uri_encoded, char *uri, int buf_size );
 
 template<class... Args>
 void error_message( Args... args ) {
-    //return;
+  return;
 	///*
-    //#ifndef __DEV__
+  //#ifndef __DEV__
 	//	return;
 	//#endif
-    //(std::cout << ... << args) << std::endl;
-    std::fstream log_file("c:\\Users\\1395262\\Desktop\\sava\\spider\\log.txt", std::fstream::out | std::fstream::app);
-    if( log_file ) {
-        (log_file << ... << args) << std::endl;
-	    log_file.close();
-    }
-    //*/
+	//(std::cout << ... << args) << std::endl;
+	std::fstream log_file("c:\\Users\\1395262\\Desktop\\sava\\spider\\serverweb\\log.txt", std::fstream::out | std::fstream::app);
+	if( log_file ) {
+			(log_file << ... << args) << std::endl;
+		log_file.close();
+	}
+	//*/
 }

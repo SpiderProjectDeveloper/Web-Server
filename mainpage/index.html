@@ -35,6 +35,21 @@
 
 <script>
 
+
+function appendProjectMenuLink( projectMenuEl, dir, projectId, linkKey ) {
+	let aEl = document.createElement('a');
+	aEl.dataset.dynamicText = dir;
+	let node = document.createTextNode( _dynamicTexts[dir][_lang] );
+	aEl.appendChild( node );
+	aEl.className = 'project-menu-a';
+	let href = `/${dir}/index.html?${projectId}`;
+	aEl.href = href;
+	aEl.onclick = function(e) { e.preventDefault(); checkAuthorizedAndProceed( href ); };
+	projectMenuEl.appendChild(aEl);
+	projectMenuEl[linkKey] = true;
+	projectMenuEl.appendChild(document.createElement('br'));
+}
+
 function loadContents() {
 	
 	let xhttp = new XMLHttpRequest();
@@ -81,28 +96,38 @@ function loadContents() {
 								projectContainerEl.appendChild(projectMenuEl);
 								projectMenuEl.className = 'project-menu';
 								projectMenuEl.style.display = 'none';
-								let l = ('Actions' in data) ? data.Actions.length : 0;
-								for( let j = 0 ; j < l ; j++ ) {
-									let aEl = document.createElement('a');
-									aEl.appendChild( document.createTextNode( data.Actions[j].Name ) );
-									aEl.className = 'project-menu-a';
-									let dir;
-									if( data.Actions[j].Command === 'OpenGanttOper' ) {
-										dir = 'gantt';
-									} else if( data.Actions[j].Command === 'OpenDashboard' ) {
-										dir = 'dashboard';
-									}
-									let href = `/${dir}/index.html?${projectId}`;
-									aEl.href = href;
-									aEl.onclick = function(e) { e.preventDefault(); checkAuthorizedAndProceed( href ); };
-									projectMenuEl.appendChild(aEl);
-									projectMenuEl.appendChild(document.createElement('br'));
-								}
+								appendProjectMenuLink( projectMenuEl, 'gantt', projectId, '__myHasGanttLink' );
+								appendProjectMenuLink( projectMenuEl, 'dashboard', projectId, '__myHasHashboardLink');
 
 								projectTitleEl.onclick = function(e){
 									if( projectMenuEl.style.display==='none' ) {
 										projectMenuEl.style.display = 'block';
 										document.getElementById(projectTitlePrefixId).innerHTML = '&minus;&nbsp;';
+										if( typeof(projectMenuEl.__myHasIfcLink) === 'undefined' ) {
+											let xhttpProps = new XMLHttpRequest();
+											xhttpProps.onreadystatechange = function() {
+												if (xhttpProps.readyState == 4 ) {
+													if( xhttpProps.status == 200 ) {
+														let errorParsingProps = false;
+														let props;	
+														try {
+															props = JSON.parse( xhttpProps.responseText );
+														} catch(e) {
+															errorParsingProps = true;
+														}
+														if( !errorParsingProps ) {
+															if( 'project' in props && 'WexbimPath' in props.project && props.project.WexbimPath.length > 0) {
+																appendProjectMenuLink(projectMenuEl, 'ifc', projectId, '__myHasIfcLink' );
+															} else {
+																projectMenuEl.__myHasIfcLink = false;
+															}
+														}
+													}
+												}
+											} 
+											xhttpProps.open( 'GET', '/.get_project_props?'+projectId, true );
+											xhttpProps.send();
+										}
 									} else {
 										projectMenuEl.style.display = 'none';
 										document.getElementById(projectTitlePrefixId).innerHTML = '&plus;&nbsp;';
@@ -113,11 +138,11 @@ function loadContents() {
 						}
 					}
 				}
-            } 
-	    }
+      } 
+	  }
 	}
 	xhttp.open( 'GET', '/.contents', true );
-    xhttp.send();
+  xhttp.send();
 }
 
 /*

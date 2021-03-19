@@ -73,7 +73,7 @@ function login( errorMessageId, loaderId, userId,  passId ) {
 				displayLoader(loaderEl, false);
 			}
 	    	if( this.status == 200 ) {
-		        if( this.responseText != "error" && this.responseText.length >= 40 ) {
+		        if( this.responseText != "error" && this.responseText.length >= 30 ) {
 					setCookie( 'user', user );
 					setCookie( 'sess_id', this.responseText );
 					window.location.href = "/";

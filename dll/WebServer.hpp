@@ -4,12 +4,15 @@
 // message_id
 #define SERVER_NOTIFICATION_MESSAGE -1
 
-#define SERVER_LOGIN 1          // returns "0" or "1"
+#define SERVER_LOGIN 1          // returns sess id
+#define SERVER_IS_LOGGED 2      // returns "0" or "1"
+#define SERVER_LOGOUT 3         // returns "0" or "1"
 
 #define SERVER_GET_CONTENTS 10  // get list of actions and list of projects
 #define SERVER_GET_DASHBOARD 20
 #define SERVER_GET_MODEL 30
 #define SERVER_GET_WEXBIM 40
+#define SERVER_GET_PROJECT_PROPS 50
 
 #define SERVER_GET_GANTT 100
 #define SERVER_CHECK_GANTT_SYNCHRO 110 // question whether gantt changed (bool)
@@ -25,12 +28,13 @@
 
 struct ServerData {
   char* user;           // user code (login)
+	char *sess_id;
   int message_id;       // id of the message sent to spider
   char* message;        // text of the message sent to spider
   int message_size;     // size of message_size
 
   char* sp_response_buf;         // spider response
-  size_t sp_response_buf_size;   // size of the sp_response_buf
+  unsigned long sp_response_buf_size;   // size of the sp_response_buf
   bool sp_free_response_buf;     // server must free memory allocated for sp_response_buf
   bool sp_response_is_file;      // whether response is the full name of a file
 };

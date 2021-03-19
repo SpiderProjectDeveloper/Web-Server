@@ -22,18 +22,25 @@ var _texts = {
 	'text-pass-error': { 'en': '"Password" field contains an invalid value. Please, try again...', 
 		'ru':'Поле "Пользователь" содержит недопустимое значение. Пожалуйста попытайтесь снова...' },
 };
-                                                                  
+          
+var _lang = null;
 
-function handleLangTexts( lang ) {
+var _dynamicTexts = {
+	'gantt': { 'en': 'Gantt Chart', 'ru': 'Диаграмма Гантта' },
+	'dashboard': { 'en': 'Dashboard', 'ru': 'Дешборд' },
+	'ifc': { 'en': '3D Viewer (IFC/wexbim)', 'ru': '3D модель (IFC/wexbim)' },
+}
+
+function handleLangTexts(lang) {
 	for( let key in _texts ) {
 		let el = document.getElementById(key);
 		if( !el ) {
 			continue;
 		}
-		if( !(lang in _texts[key]) ) {
+		if( !(_lang in _texts[key]) ) {
 			continue;
 		}
-		el.innerHTML = _texts[key][lang];
+		el.innerHTML = _texts[key][_lang];
 	}
 	let userName = getCookie('user');	
 	if( userName !== null ) {
@@ -41,6 +48,11 @@ function handleLangTexts( lang ) {
 		if( el )
 			el.innerHTML = userName;
 	}	
+
+	let dt = document.querySelectorAll("[data-dynamicText]")
+	for( let i = 0 ; i < dt.length ; i++ ) {
+		dt[i].childNodes[0].nodeValue = _dynamicTexts[dir][_lang];
+	}
 }
 
 function handleLang( langId ) {
@@ -49,28 +61,27 @@ function handleLang( langId ) {
 		return;
 	}
 
-	let lang = null;
 	let langIndex = -1;
 
 	// Reading lang from uri
 	let ss = window.location.search;
 	if( ss.length > 1 ) {
-		lang = ss.substr(1).trim().toLowerCase();		
-		langIndex = _langs.indexOf(lang);
+		_lang = ss.substr(1).trim().toLowerCase();		
+		langIndex = _langs.indexOf(_lang);
 	}
 	// If no lang found, reading from cookie
 	if( langIndex === -1 ) {
-		lang = getCookie( 'lang' );
-		langIndex = _langs.indexOf(lang);
+		_lang = getCookie( 'lang' );
+		langIndex = _langs.indexOf(_lang);
 	}
 	if( langIndex === -1 ) {
 		langIndex = 0;
-		lang = _langs[langIndex];
+		_lang = _langs[langIndex];
 	}	
 	//langEl.innerHTML = lang;	
-	handleLangTexts( lang );
+	handleLangTexts( _lang );
 	langEl.dataset.langindex = langIndex;
-	setCookie( 'lang', lang );
+	setCookie( 'lang', _lang );
 
 	langEl.onclick = function(e) {
 		let index = parseInt( this.dataset.langindex );
@@ -82,9 +93,9 @@ function handleLang( langId ) {
 		} else {
 			index = 0;
 		}
-		let lang = _langs[index];
+		_lang = _langs[index];
 		//langEl.innerHTML = lang;
-		handleLangTexts( lang );
+		handleLangTexts( _lang );
 		this.dataset.langindex = index;
 		setCookie( 'lang', _langs[index] );
 	};
