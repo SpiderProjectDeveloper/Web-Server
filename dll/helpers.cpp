@@ -336,3 +336,59 @@ int decode_uri( char *uri_encoded, char *uri, int buf_size ) {
 	}
 	return 0;
 } 
+
+
+int get_content_read( char *b, int b_len ) {
+	for( int i = 0; i < b_len - 3 ; i++ ) {
+		if( (b[i] == '\r' || b[i] == '\n') && (b[i+1] == '\r' || b[i+1] == '\n') &&
+	        (b[i+2] == '\r' || b[i+2] == '\n') && (b[i+3] == '\r' || b[i+3] == '\n') )
+		{
+			return b_len-i-4;
+		}
+	}
+	return -1;
+}
+
+
+int get_content_length( char *b, int b_len ) {
+	int b_max_index_for_content_length = b_len-15;
+	int i = 0;
+	for( ; i < b_max_index_for_content_length ; i++ ) {
+		if( (b[i] == 'C' || b[i] == 'c') &&  (b[i+1] == 'O' || b[i+1] == 'o') &&  (b[i+2] == 'N' || b[i+2] == 'n') && 
+			(b[i+3] == 'T' || b[i+3] == 't') && (b[i+4] == 'E' || b[i+4] == 'e') &&  (b[i+5] == 'N' || b[i+5] == 'n') && 
+			(b[i+6] == 'T' || b[i+6] == 't') && (b[i+7] == '-') &&  
+			(b[i+8] == 'L' || b[i+8] == 'l') && (b[i+9] == 'E' || b[i+9] == 'e') &&  (b[i+10] == 'N' || b[i+10] == 'n') && 
+			(b[i+11] == 'G' || b[i+11] == 'g') && (b[i+12] == 'T' || b[i+12] == 't') && (b[i+13] == 'H' || b[i+13] == 'h') && 
+			(b[i+14] == ':' ) ) 
+		{
+			break;
+		}
+	}
+	if( !(i < b_max_index_for_content_length) ) {
+		return -1;
+	}
+	
+	int content_length=0;
+	for( i = i+15 ; i < b_len ; i++ ) { 	// Skipping space(s) if exists
+		if( b[i] == '\r' || b[i] == '\n' )
+			break;
+		int digit;
+		switch( b[i] ) {
+			case '0': digit=0; break;
+			case '1': digit=1; break;
+			case '2': digit=2; break;
+			case '3': digit=3; break;
+			case '4': digit=4; break;
+			case '5': digit=5; break;
+			case '6': digit=6; break;
+			case '7': digit=7; break;
+			case '8': digit=8; break;
+			case '9': digit=9; break;
+			default: digit=-1;
+		}
+		if( digit >= 0 ) {
+			content_length = content_length*10 + digit;
+		}
+	}	
+	return content_length;
+}

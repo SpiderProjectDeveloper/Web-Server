@@ -39,7 +39,7 @@ static void querySPAndPrepareResponse( callback_ptr callback, char *uri, char *s
 static void send_redirect( int client_socket, char *uri );
 
 #define AUTH_URI_NUM 4
-static constexpr char *_auth_uri[] = { "/index", "/gantt/", "/input/", "/dashboard/" };
+static constexpr char *_auth_uri[] = { "/gantt/", "/input/", "/dashboard/", "/ifc/" };
 
 
 void server_response( int client_socket, char *socket_request_buf, int socket_request_buf_size, 
@@ -52,8 +52,7 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 	static char get[_get_buf_size+1];
 	bool is_options = false;
 
-	int uri_status = get_uri_to_serve(socket_request_buf, uri, _uri_buf_size, &is_get, get_encoded, _get_buf_size, 
-		&post, &is_options);
+	int uri_status = get_uri_to_serve(socket_request_buf, uri, _uri_buf_size, &is_get, get_encoded, _get_buf_size, &post, &is_options);
 	if (uri_status != 0) { 	// Failed to parse uri - closing socket...
 		send(client_socket, _http_empty_message, strlen(_http_empty_message), 0);
 		return;
@@ -121,7 +120,8 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 	if( strcmp(uri,"/.logout") == 0 ) { 	// Logging out?
 		get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
 		server_logout(sdw, cookie_sess_id, callback);
-		send_redirect(client_socket, "/login.html");  // ... redirecting	
+		//send_redirect(client_socket, "/?login");  // ... redirecting	
+		send(client_socket, _http_not_authorized, strlen(_http_not_authorized), 0);
 		return;
 	}
 			
@@ -174,7 +174,7 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 			error_message("server: is logged?");
 			if( !server_is_logged(sdw, cookie_sess_id, callback) ) {
 				if( is_html_request(uri) ) { 	// If it is an html request...
-					send_redirect(client_socket, "/login.html");  				// ... redirectingto login.html
+					send_redirect(client_socket, "/");  				// ... redirectingto login.html
 				} else { // Other requests - sending "Bad Request"				
 					send( client_socket, _http_header_bad_request, sizeof(_http_header_bad_request), 0 );
 				}
@@ -303,8 +303,13 @@ static void querySPAndPrepareResponse(
 		sdw.sd.message_id = SERVER_GET_PROJECT_PROPS;
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
-		binary_data_requested = true;
 	} 
+	else if( strcmp( uri, "/.close_project" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_CLOSE_PROJECT;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+	} 
+
 
 	if( sdw.sd.sp_response_buf == nullptr || 	// Might happen if mistakenly left as nullptr in SP.
 		callback_return < 0 || sdw.sd.sp_response_buf_size == 0 || // An error 

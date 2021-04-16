@@ -28,7 +28,8 @@ var _lang = null;
 var _dynamicTexts = {
 	'gantt': { 'en': 'Gantt Chart', 'ru': 'Диаграмма Гантта' },
 	'dashboard': { 'en': 'Dashboard', 'ru': 'Дешборд' },
-	'ifc': { 'en': '3D Viewer (IFC/wexbim)', 'ru': '3D модель (IFC/wexbim)' },
+	'input': { 'en': 'Performance Input', 'ru': 'Ввод учета' },
+	'ifc': { 'en': '3D Viewer (IFC/wexbim)', 'ru': '3D модель (IFC/wexbim)' }
 }
 
 function handleLangTexts(lang) {

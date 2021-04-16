@@ -7,6 +7,7 @@
 #define SERVER_LOGIN 1          // returns sess id
 #define SERVER_IS_LOGGED 2      // returns "0" or "1"
 #define SERVER_LOGOUT 3         // returns "0" or "1"
+#define SERVER_CLOSE_PROJECT 4
 
 #define SERVER_GET_CONTENTS 10  // get list of actions and list of projects
 #define SERVER_GET_DASHBOARD 20

@@ -35,6 +35,44 @@
 
 <script>
 
+function appendProjectMenuTitle( projectMenuEl, title ) {
+	let divEl = document.createElement('div');
+	let node = document.createTextNode( title );
+	divEl.appendChild( node );
+	divEl.className = 'project-menu-title';
+	projectMenuEl.appendChild(divEl);
+}
+
+function appendProjectMenuInputLink( projectMenuEl, projectId, curTime, linkKey ) {
+	let aEl = document.createElement('a');
+	aEl.dataset.dynamicText = 'input';
+	let node = document.createTextNode( _dynamicTexts['input'][_lang] );
+	aEl.appendChild( node );
+	aEl.className = 'project-menu-a';
+
+	let stEl = document.createElement('input');
+	stEl.className = 'project-menu-input';
+	stEl.value = secondsIntoSpiderDateString(curTime);
+	let enEl = document.createElement('input');
+	enEl.className = 'project-menu-input';
+	enEl.value = secondsIntoSpiderDateString(curTime, { addSeconds: 60*60*24*7 });
+	aEl.onclick = function(e) {
+		let st = parseDate( stEl.value );
+		let en = parseDate( enEl.value );
+		if( st !== null && en !== null ) {
+			let href = `/input/index.html?projectId=${projectId}&from=${st.timeInSeconds}&to=${en.timeInSeconds}`;
+			e.preventDefault(); 
+			checkAuthorizedAndProceed( href );
+		} 
+	};
+	projectMenuEl.appendChild(document.createElement('hr'));
+	projectMenuEl.appendChild(aEl);
+	projectMenuEl.appendChild(document.createElement('br'));
+	projectMenuEl.appendChild(stEl);
+	projectMenuEl.appendChild(enEl);
+	projectMenuEl[linkKey] = true;
+	projectMenuEl.appendChild(document.createElement('br'));
+}
 
 function appendProjectMenuLink( projectMenuEl, dir, projectId, linkKey ) {
 	let aEl = document.createElement('a');
@@ -96,8 +134,6 @@ function loadContents() {
 								projectContainerEl.appendChild(projectMenuEl);
 								projectMenuEl.className = 'project-menu';
 								projectMenuEl.style.display = 'none';
-								appendProjectMenuLink( projectMenuEl, 'gantt', projectId, '__myHasGanttLink' );
-								appendProjectMenuLink( projectMenuEl, 'dashboard', projectId, '__myHasHashboardLink');
 
 								projectTitleEl.onclick = function(e){
 									if( projectMenuEl.style.display==='none' ) {
@@ -116,10 +152,21 @@ function loadContents() {
 															errorParsingProps = true;
 														}
 														if( !errorParsingProps ) {
+															console.log(props);
+															if( 'project' in props && 'Name' in props.project ) {
+																appendProjectMenuTitle(projectMenuEl, props.project.Name );
+															} 
+															appendProjectMenuLink( projectMenuEl, 'gantt', projectId, '__myHasGanttLink' );
+															appendProjectMenuLink( projectMenuEl, 'dashboard', projectId, '__myHasHashboardLink');
 															if( 'project' in props && 'WexbimPath' in props.project && props.project.WexbimPath.length > 0) {
 																appendProjectMenuLink(projectMenuEl, 'ifc', projectId, '__myHasIfcLink' );
 															} else {
 																projectMenuEl.__myHasIfcLink = false;
+															}
+															if( 'project' in props && 'CurTime' in props.project ) {										
+																appendProjectMenuInputLink( projectMenuEl, projectId, props.project.CurTime, '__myHasInputLink' );
+															} else {
+																projectMenuEl.__myInputIfcLink = false;
 															}
 														}
 													}
@@ -133,7 +180,6 @@ function loadContents() {
 										document.getElementById(projectTitlePrefixId).innerHTML = '&plus;&nbsp;';
 									}
 								};				
-
 							}
 						}
 					}
@@ -218,6 +264,90 @@ window.addEventListener('load', function() {
 		logoutEl.onclick = function(e) { e.preventDefault(); checkAvailabilityAndProceed('/.logout', true); };		
 	}
 });
+
+
+function secondsIntoSpiderDateString( seconds, props = { addSeconds:0, dateFormat:'DMY' } ) {
+	if( typeof(seconds) === 'undefined' || seconds === null || seconds === '' ) {
+		return '';
+	}
+
+	let spiderDateString = '';
+	let date;
+	try {
+		date = new Date( parseInt(seconds) * 1000 + (('addSeconds' in props) ? props.addSeconds*1000 : 0) );
+	} catch(e) {
+		return '';
+	}
+
+	let year = date.getUTCFullYear(); 
+	let month = (date.getUTCMonth()+1);
+	if( month < 10 ) {
+		month = "0" + month;
+	}
+	let day = date.getUTCDate();
+	if( day < 10 ) {
+		day = "0" + day;
+	}
+	let dateFormat = ('dateFormat' in props) ? props.dateFormat : 'DMY';
+	let dateDelim = ('dateDelim' in props) ? props.dateDelim : '.';
+	if( dateFormat === 'DMY' ) {
+		spiderDateString = day + dateDelim + month + dateDelim + year; 
+	} else {
+		spiderDateString = month + dateDelim + day + dateDelim + year;		 
+	}
+	return( spiderDateString ); 
+}
+
+
+function parseDate( dateString, props = { dateFormat:'DMY' } ) {
+	if( typeof(dateString) === 'undefined' ) {
+		return null;
+	}
+	if( dateString == null ) {
+		return null;
+	}
+	let date = null;
+	let y=null, m=null, d=null, hr=null, mn=null;
+	let parsedFull = dateString.match( /([0-9]+)[\.\/\-\:]([0-9]+)[\.\/\-\:]([0-9]+)[ T]+([0-9]+)[\:\.\-\/]([0-9]+)/ );
+	if( parsedFull !== null ) {
+		if( parsedFull.length == 6 ) {
+			y = parsedFull[3];
+			if( 'dateFormat' in props && props.dateFormat === 'MDY' ) {
+				m = parsedFull[1];
+				d = parsedFull[2];								
+			} else {
+				d = parsedFull[1];
+				m = parsedFull[2];				
+			}
+			hr = parsedFull[4];
+			mn = parsedFull[5];
+			date = new Date( Date.UTC(y, m-1, d, hr, mn, 0, 0) );
+		}
+	} else {
+		let parsedShort = dateString.match( /([0-9]+)[\.\/\-\:]([0-9]+)[\.\/\-\:]([0-9]+)/ );
+		if( parsedShort !== null ) {
+			if( parsedShort.length == 4 ) {
+				y = parsedShort[3];
+				if( 'dateFormat' in props && props.dateFormat === 'MDY' ) {
+					m = parsedShort[1];
+					d = parsedShort[2];								
+				} else {
+					d = parsedShort[1];
+					m = parsedShort[2];				
+				}
+				hr = 0;
+				mn = 0;
+				date = new Date(Date.UTC(y, m-1, d, hr, mn, 0, 0, 0, 0));
+			}
+		}
+	}
+	if( date === null ) {
+		return null;
+	}
+	let timeInSeconds = date.getTime();
+	return( { 'date':date, 'timeInSeconds':timeInSeconds/1000 } ); 
+}
+
 
 window.addEventListener( 'load', function() { loadContents(); } );
 
