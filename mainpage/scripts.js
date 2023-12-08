@@ -21,6 +21,10 @@ var _texts = {
 		'ru':'Поле "Пользователь" содержит недопустимое значение. Пожалуйста попытайтесь снова...' },
 	'text-pass-error': { 'en': '"Password" field contains an invalid value. Please, try again...', 
 		'ru':'Поле "Пользователь" содержит недопустимое значение. Пожалуйста попытайтесь снова...' },
+	'text-get-gantt-structs': { 
+		'en': 'Open Available Gantt Structs', 
+		'ru': 'Открыть список доступных структур' 
+	}
 };
           
 var _lang = null;

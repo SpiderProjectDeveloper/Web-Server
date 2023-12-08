@@ -65,11 +65,20 @@ void set_mime_type(char *fn, char *mime_buf, int mime_buf_size) {
 		tolower(fn[l-4]) == 'h' && fn[l-5] == '.' ) ) 
 	{
 		strcpy(mime_buf, "text/html; charset=utf-8"); 	// .html
-	} else if( l > 4 && 
+	} 
+	else if( l > 4 && 
 		(tolower(fn[l-1]) == 't' && tolower(fn[l-2]) == 'x' && tolower(fn[l-3]) == 't' && fn[l-4] == '.') ) 
 	{
 		strcpy(mime_buf, "text/plain; charset=utf-8"); 	// .txt
-	} else {
+	}
+	else if( l > 5 && 
+		(tolower(fn[l-1]) == 'm' && tolower(fn[l-2]) == 's' && tolower(fn[l-3]) == 'a' && 
+		tolower(fn[l-4]) == 'w' && fn[l-5] == '.') ) 
+	{
+		strcpy(mime_buf, "application/wasm"); 	// .json
+	}  
+	else 
+	{
 		strcpy(mime_buf, "text/html; charset=utf-8");
 	}
 }
@@ -195,7 +204,8 @@ bool is_html_request( char *uri ) {
 }
 
 
-int get_user_and_session_from_cookie( char *b, char *user_buf, int user_buf_size, char *sess_id_buf, int sess_id_buf_size  ) {
+int get_user_and_session_from_cookie( char *b, char *user_buf, int user_buf_size, char *sess_id_buf, int sess_id_buf_size ) 
+{
 	int r = 0; 
 	int b_len = strlen(b);
 
@@ -277,7 +287,8 @@ int get_user_and_session_from_cookie( char *b, char *user_buf, int user_buf_size
 }
 
 
-int get_user_and_pass_from_post( char *b, char *user_buf, int user_buf_size, char *pass_buf, int pass_buf_size ) {
+int get_user_and_pass_from_post( char *b, char *user_buf, int user_buf_size, char *pass_buf, int pass_buf_size ) 
+{
 	int r = 0;
 
 	int b_len = strlen(b);
@@ -328,6 +339,102 @@ int get_user_and_pass_from_post( char *b, char *user_buf, int user_buf_size, cha
 }
 
 
+bool get_session_from_uri( char *b, char *sess_id_buf, int sess_id_buf_size ) 
+{
+	int r = 0; 
+	int b_len = strlen(b);
+
+	sess_id_buf[0] = '\x0';
+	
+	int session_index = -1;
+	for (int i = 0; i < b_len - 8; i++) 
+	{
+		bool isSessId = 
+			tolower(b[i]) == 's' && tolower(b[i + 1]) == 'e' && tolower(b[i + 2]) == 's' && 
+			tolower(b[i + 3]) == 's' && tolower(b[i + 4]) == 'i' && 
+			tolower(b[i + 5]) == 'd' && tolower(b[i + 6]) == '=';
+		if( isSessId ) {
+			session_index = i + 7;
+			break;
+		}
+	}
+	//error_message( "session_index: ", session_index );
+	if( session_index == -1 ) return false;
+
+	int session_ending_index = session_index;
+	for( int i = session_index+1; i < b_len; i++ ) {
+		if( b[i] == '&' || b[i] == ' ' ) break;
+		session_ending_index++;
+	}
+	//error_message( "session_ending_index: ", session_ending_index );
+
+	int l = session_ending_index - session_index + 1;
+	if( l <= 0 ) return false;
+	if( l > sess_id_buf_size ) {
+		l = sess_id_buf_size;
+	}
+	for( int i = 0 ; i < l ; i++ ) {
+		sess_id_buf[i] = b[session_index + i];
+	}
+	sess_id_buf[l] = '\x0';
+
+	return true;
+}
+
+
+bool get_session_from_referer( char *b, char *sess_id_buf, int sess_id_buf_size ) 
+{
+	int r = 0; 
+	int b_len = strlen(b);
+
+	sess_id_buf[0] = '\x0';
+	
+	int referer_index = -1;
+	for (int i = 0; i < b_len - 9; i++) {
+		bool isReferer = tolower(b[i]) == 'r' && tolower(b[i + 1]) == 'e' && tolower(b[i + 2]) == 'f' &&
+			tolower(b[i + 3]) == 'e' && tolower(b[i + 4]) == 'r' && tolower(b[i + 5]) == 'e' && 
+			tolower(b[i + 6]) == 'r' && b[i + 7] == ':';
+		if( isReferer ) {
+			referer_index = i + 8;
+			break;
+		}
+	}
+	if( referer_index == -1 ) return false;
+
+	int session_index = -1;	
+	for (int i = referer_index; i < b_len - 8; i++) 
+	{
+		bool isSessId = tolower(b[i]) == 's' && tolower(b[i + 1]) == 'e' && 
+			tolower(b[i + 2]) == 's' && tolower(b[i + 3]) == 's' && 
+			tolower(b[i + 4]) == 'i' && tolower(b[i + 5]) == 'd' && b[i + 6] == '=';
+		if( isSessId  ) {
+			session_index = i + 7;
+			break;
+		}
+	}
+	if( session_index == -1 ) return false;
+
+	int session_ending_index = session_index;
+	for( int i = session_index+1; i < b_len; i++ ) {
+		if( b[i] == '&' || b[i] == ' ' || b[i] == '\r' || b[i] == '\n') break;
+		session_ending_index++;
+	}
+
+	int l = session_ending_index - session_index + 1;
+	if( l <= 0 ) return false;
+	if( l > sess_id_buf_size ) {
+		l = sess_id_buf_size;
+	}
+	for( int i = 0 ; i < l ; i++ ) {
+		sess_id_buf[i] = b[session_index + i];
+	}
+	sess_id_buf[l] = '\x0';
+
+	return true;
+}
+
+
+
 int decode_uri( char *uri_encoded, char *uri, int buf_size ) {
 	DWORD size = buf_size;
 	HRESULT hres = UrlUnescapeA( uri_encoded, uri, &size, 0 );
@@ -351,6 +458,9 @@ int get_content_read( char *b, int b_len ) {
 
 
 int get_content_length( char *b, int b_len ) {
+	if( b_len < 15 ) {
+		return -1;
+	}
 	int b_max_index_for_content_length = b_len-15;
 	int i = 0;
 	for( ; i < b_max_index_for_content_length ; i++ ) {

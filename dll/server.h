@@ -48,7 +48,8 @@ class ResponseWrapper {
 
 	~ResponseWrapper() {
 		if( body_allocated != nullptr ) {
-			delete [] body;
+			delete [] body_allocated;
+			body_allocated = nullptr;
 		}
 	}	
 };

@@ -1,3 +1,5 @@
 ﻿dll/.backup
 dll/.vscode
 dll/server.sess
+dll/*.obj
+code-store/*

@@ -17,12 +17,19 @@ char* server_login( ServerDataWrapper& sdw, char *user, char *pass, callback_ptr
 	return nullptr;
 }
 
-bool server_is_logged( ServerDataWrapper& sdw, char *sess_id, callback_ptr callback, bool is_update_session ) {
+bool server_is_logged( 
+	ServerDataWrapper& sdw, 
+	char *sess_id, callback_ptr callback, 
+	bool is_update_session ) 
+{
 	try {
 			sdw.sd.message_id = SERVER_IS_LOGGED;
 			sdw.sd.sess_id = sess_id;
+			// error_message( "server_auth sess_id: ", sess_id );
 			int callback_return = callback( &sdw.sd );
-			if( sdw.sd.sp_response_buf != nullptr && callback_return >= 0 && sdw.sd.sp_response_buf_size > 0 ) {
+			// if( sdw.sd.sp_response_buf != nullptr ) error_message( "sdw.sd.sp_response_buf: ", sdw.sd.sp_response_buf );
+			if( sdw.sd.sp_response_buf != nullptr && callback_return >= 0 && sdw.sd.sp_response_buf_size > 0 ) 
+			{
 				if( sdw.sd.sp_response_buf[0] == '0' ) {
 					return false;
 				}

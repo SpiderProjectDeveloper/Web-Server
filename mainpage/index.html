@@ -35,7 +35,8 @@
 
 <script>
 
-function appendProjectMenuTitle( projectMenuEl, title ) {
+function appendProjectMenuTitle( projectMenuEl, title ) 
+{
 	let divEl = document.createElement('div');
 	let node = document.createTextNode( title );
 	divEl.appendChild( node );
@@ -43,7 +44,8 @@ function appendProjectMenuTitle( projectMenuEl, title ) {
 	projectMenuEl.appendChild(divEl);
 }
 
-function appendProjectMenuInputLink( projectMenuEl, projectId, curTime, linkKey ) {
+function appendProjectMenuInputLink( projectMenuEl, projectId, curTime, linkKey ) 
+{
 	let aEl = document.createElement('a');
 	aEl.dataset.dynamicText = 'input';
 	let node = document.createTextNode( _dynamicTexts['input'][_lang] );
@@ -74,7 +76,24 @@ function appendProjectMenuInputLink( projectMenuEl, projectId, curTime, linkKey 
 	projectMenuEl.appendChild(document.createElement('br'));
 }
 
-function appendProjectMenuLink( projectMenuEl, dir, projectId, linkKey ) {
+function appendGetGanttStructuresButton( projectMenuEl, projectId, linkKey ) 
+{
+	let aEl = document.createElement('a');
+	aEl.dataset.dynamicText = 'text-get-gantt-structs';
+	let node = document.createTextNode( _dynamicTexts[dir][_lang] );
+	aEl.appendChild( node );
+	aEl.className = 'project-menu-a';
+	//let href = `/${dir}/index.html?${projectId}`;
+	aEl.href = '#';
+	aEl.onclick = function(e) { e.preventDefault(); };
+	projectMenuEl.appendChild(aEl);
+	projectMenuEl[linkKey] = true;
+	projectMenuEl.appendChild(document.createElement('br'));
+}
+
+
+function appendProjectMenuLink( projectMenuEl, dir, projectId, linkKey ) 
+{
 	let aEl = document.createElement('a');
 	aEl.dataset.dynamicText = dir;
 	let node = document.createTextNode( _dynamicTexts[dir][_lang] );
@@ -88,12 +107,15 @@ function appendProjectMenuLink( projectMenuEl, dir, projectId, linkKey ) {
 	projectMenuEl.appendChild(document.createElement('br'));
 }
 
-function loadContents() {
-	
+function loadContents() 
+{	
 	let xhttp = new XMLHttpRequest();
-	xhttp.onreadystatechange = function() {
-		if (xhttp.readyState == 4 ) {
-			if( xhttp.status == 200 ) {
+	xhttp.onreadystatechange = function() 
+	{
+		if (xhttp.readyState == 4 ) 
+		{
+			if( xhttp.status == 200 ) 
+			{
 				let data=null;
 				let errorParsingStatusData = false;	
 				let containerEl = document.getElementById('projects');
@@ -135,15 +157,19 @@ function loadContents() {
 								projectMenuEl.className = 'project-menu';
 								projectMenuEl.style.display = 'none';
 
-								projectTitleEl.onclick = function(e){
+								projectTitleEl.onclick = function(e)
+								{
 									if( projectMenuEl.style.display==='none' ) {
 										projectMenuEl.style.display = 'block';
 										document.getElementById(projectTitlePrefixId).innerHTML = '&minus;&nbsp;';
 										if( typeof(projectMenuEl.__myHasIfcLink) === 'undefined' ) {
 											let xhttpProps = new XMLHttpRequest();
-											xhttpProps.onreadystatechange = function() {
-												if (xhttpProps.readyState == 4 ) {
-													if( xhttpProps.status == 200 ) {
+											xhttpProps.onreadystatechange = function() 
+											{
+												if (xhttpProps.readyState == 4 ) 
+												{
+													if( xhttpProps.status == 200 ) 
+													{
 														let errorParsingProps = false;
 														let props;	
 														try {
@@ -151,7 +177,8 @@ function loadContents() {
 														} catch(e) {
 															errorParsingProps = true;
 														}
-														if( !errorParsingProps ) {
+														if( !errorParsingProps ) 
+														{
 															console.log(props);
 															if( 'project' in props && 'Name' in props.project ) {
 																appendProjectMenuTitle(projectMenuEl, props.project.Name );

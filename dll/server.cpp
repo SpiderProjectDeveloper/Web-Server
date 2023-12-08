@@ -118,6 +118,7 @@ int start( StartServerData *ssd, callback_ptr callback ) {
 	return 0;
 } 
 
+
 // ******** THE SERVER
 static int server( StartServerData *ssd, callback_ptr callback )
 {
@@ -176,6 +177,7 @@ static int server( StartServerData *ssd, callback_ptr callback )
 			closesocket(client_socket);
 		} else if( bytes_read == 0 ) { 	
 			error_message("server: the connection was closed by the client...");
+			closesocket(client_socket);
 		} else {
 			_socket_request_buf[bytes_read] = '\0';
 			error_message( "server [request]:\n" + std::string(_socket_request_buf) + "\nlength=" + std::to_string(bytes_read) );

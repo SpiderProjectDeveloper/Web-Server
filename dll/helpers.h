@@ -9,6 +9,10 @@ int get_user_and_session_from_cookie( char *b, char *user_buf, int user_buf_size
 
 int get_user_and_pass_from_post( char *b, char *user_buf, int user_buf_size, char *pass_buf, int pass_buf_size );
 
+bool get_session_from_uri( char *b, char *sess_id_buf, int sess_id_buf_size );
+
+bool get_session_from_referer( char *b, char *sess_id_buf, int sess_id_buf_size );
+
 bool is_html_request( char *uri );
 
 int decode_uri( char *uri_encoded, char *uri, int buf_size );
@@ -21,15 +25,15 @@ int get_content_length( char *b, int b_len );
 template<class... Args>
 void error_message( Args... args ) {
   return;
-	///*
-  //#ifndef __DEV__
-	//	return;
-	//#endif
-	//(std::cout << ... << args) << std::endl;
-	std::fstream log_file("c:\\Users\\1395262\\Desktop\\sava\\spider\\serverweb\\log.txt", std::fstream::out | std::fstream::app);
+	/*
+  #ifndef __DEV__
+		return;
+	#endif
+	(std::cout << ... << args) << std::endl;
+	std::fstream log_file("C:\\Users\\~395262\\~esktop\\~ava\\~pider\\serverweb\\log.txt", std::fstream::out | std::fstream::app);
 	if( log_file ) {
 			(log_file << ... << args) << std::endl;
 		log_file.close();
 	}
-	//*/
+	*/
 }

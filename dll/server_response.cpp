@@ -42,7 +42,8 @@ static void send_redirect( int client_socket, char *uri );
 static constexpr char *_auth_uri[] = { "/gantt/", "/input/", "/dashboard/", "/ifc/" };
 
 
-void server_response( int client_socket, char *socket_request_buf, int socket_request_buf_size, 
+void server_response( 
+	int client_socket, char *socket_request_buf, int socket_request_buf_size, 
 	char *html_source_dir, callback_ptr callback ) 
 {
 	static char uri[_uri_buf_size+1];
@@ -53,16 +54,20 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 	bool is_options = false;
 
 	int uri_status = get_uri_to_serve(socket_request_buf, uri, _uri_buf_size, &is_get, get_encoded, _get_buf_size, &post, &is_options);
+	error_message( "get_encoded:", get_encoded );	
 	if (uri_status != 0) { 	// Failed to parse uri - closing socket...
 		send(client_socket, _http_empty_message, strlen(_http_empty_message), 0);
+		error_message("server: uri_status != 0" );
 		return;
 	}
 	if( is_get ) {
 		int decode_status = decode_uri( get_encoded, get, _get_buf_size );
 		if( decode_status != 0 ) {
 			send(client_socket, _http_empty_message, strlen(_http_empty_message), 0);
+			error_message("server: decode_status != 0" );
 			return;
 		}
+		error_message( "get:", get );	
 	}
 
 	error_message("server: requested uri=", uri );
@@ -83,6 +88,8 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 	ServerDataWrapper sdw;
 
 	static char cookie_sess_id[ SRV_SESS_ID_LEN + 1 ];
+	static char uri_sess_id[ SRV_SESS_ID_LEN + 1 ];
+	static char referer_sess_id[ SRV_SESS_ID_LEN + 1 ];
 	static char cookie_user[ SRV_USER_MAX_LEN + 1 ];
 	static char post_user[ SRV_USER_MAX_LEN + 1 ];
 	static char post_pass[ SRV_USER_MAX_LEN + 1 ];
@@ -143,7 +150,8 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 			is_update_session = true;
 		}
 		get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
-		if( !server_is_logged( sdw, cookie_sess_id, callback, is_update_session ) ) {
+		if( !server_is_logged( sdw, cookie_sess_id, callback, is_update_session ) ) 
+		{
 			if( !is_update_session ) { 	
 				send(client_socket, _http_synchro_not_authorized, strlen(_http_synchro_not_authorized), 0);
 			} else {
@@ -158,10 +166,11 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 		catch (...) {
 			error_message( "Failed to create response..." );
 			send(client_socket, _http_header_failed_to_serve, strlen(_http_header_failed_to_serve), 0);
-			closesocket(client_socket);
+			//closesocket(client_socket);
 			return;
 		}
-	} else { 	// Serving a file... 
+	} else 
+	{ 	// Serving a file... 
 		bool is_auth_required = false;
 		for( int i = 0 ; i < AUTH_URI_NUM ; i++ ) {
 			if( strncmp( uri, _auth_uri[i], strlen(_auth_uri[i]) ) == 0 ) { // Auth is required!
@@ -169,10 +178,23 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 				break;
 			}
 		}
-		if( is_auth_required ) {
+		if( is_auth_required ) 
+		{
+			bool isLogged = false;
 			get_user_and_session_from_cookie( socket_request_buf, cookie_user, SRV_USER_MAX_LEN, cookie_sess_id, SRV_SESS_ID_LEN );
-			error_message("server: is logged?");
-			if( !server_is_logged(sdw, cookie_sess_id, callback) ) {
+			if( server_is_logged(sdw, cookie_sess_id, callback) ) isLogged =  true;
+			if( !isLogged && is_get ) {
+				get_session_from_uri( get, uri_sess_id, SRV_SESS_ID_LEN  );
+				if( server_is_logged( sdw, uri_sess_id, callback ) ) isLogged = true;
+			}
+			if( !isLogged && is_get ) {
+				get_session_from_referer( socket_request_buf, referer_sess_id, SRV_SESS_ID_LEN  );
+				if( server_is_logged( sdw, referer_sess_id, callback ) ) isLogged = true;
+				error_message( "referer sess id: ", referer_sess_id );
+				error_message( "referer is logged: ", isLogged);
+			}
+			if( !isLogged )
+			{
 				if( is_html_request(uri) ) { 	// If it is an html request...
 					send_redirect(client_socket, "/");  				// ... redirectingto login.html
 				} else { // Other requests - sending "Bad Request"				
@@ -182,29 +204,30 @@ void server_response( int client_socket, char *socket_request_buf, int socket_re
 			}
 		} 
 		try {
+			error_message( uri[1] );
 			readHtmlFileAndPrepareResponse( &uri[1], html_source_dir, response );
 		}
 		catch (...) {
-			error_message( "Failed to create response..." );
+			// error_message( "Failed to create response..." );
 			send(client_socket, _http_header_failed_to_serve, strlen(_http_header_failed_to_serve), 0);
-			closesocket(client_socket);
+			//closesocket(client_socket);
 			return;
 		}
 	}
 
 	int send_header_result = send(client_socket, response.header, strlen(response.header), 0);
 	if (send_header_result == SOCKET_ERROR) { 	// If error...
-		error_message( "header send failed: ", WSAGetLastError() );
+		// error_message( "header send failed: ", WSAGetLastError() );
 	} else {
 		if (response.body != nullptr && response.body_len > 0 ) {
 			int send_body_result = send(client_socket, response.body, response.body_len, 0);
 			if (send_body_result == SOCKET_ERROR) { 	// If error...
-				error_message( "send failed: ",  WSAGetLastError() );
+				// error_message( "send failed: ",  WSAGetLastError() );
 			}
 		} else if (response.body_allocated != nullptr && response.body_len > 0 ) {
 			int send_body_result = send(client_socket, response.body_allocated, response.body_len, 0);
 			if (send_body_result == SOCKET_ERROR) { 	// If error...
-				error_message( "send failed: ", WSAGetLastError() );
+				// error_message( "send failed: ", WSAGetLastError() );
 			}
 		}
 	}
@@ -242,6 +265,11 @@ static void querySPAndPrepareResponse(
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
 	} 
+	else if( strcmp( uri, "/.check_sdoc_synchro" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_CHECK_SDOC_SYNCHRO;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+	} 
 	else if( strcmp( uri, "/.save_gantt" ) == 0 && post != nullptr ) {
 		sdw.sd.message_id = SERVER_SAVE_GANTT;
 		sdw.sd.message = post;
@@ -249,6 +277,31 @@ static void querySPAndPrepareResponse(
 	} 
 	else if( strcmp( uri, "/.save_input" ) == 0 && post != nullptr ) {
 		sdw.sd.message_id = SERVER_SAVE_INPUT;
+		sdw.sd.message = post;
+		callback_return = callback( &sdw.sd );
+	} 
+	else if( strcmp( uri, "/.save_sdoc" ) == 0 && post != nullptr ) {
+		sdw.sd.message_id = SERVER_SAVE_SDOC;
+		sdw.sd.message = post;
+		callback_return = callback( &sdw.sd );
+	} 
+	else if( strcmp( uri, "/.set_table" ) == 0 && post != nullptr ) {
+		sdw.sd.message_id = SERVER_SET_TABLE;
+		sdw.sd.message = post;
+		callback_return = callback( &sdw.sd );
+	} 
+	else if( strcmp( uri, "/.set_ifc" ) == 0 && post != nullptr ) {
+		sdw.sd.message_id = SERVER_SET_IFC;
+		sdw.sd.message = post;
+		callback_return = callback( &sdw.sd );
+	} 	
+	else if( strcmp( uri, "/.create_project" ) == 0 && post != nullptr ) {
+		sdw.sd.message_id = SERVER_CREATE_PROJECT;
+		sdw.sd.message = post;
+		callback_return = callback( &sdw.sd );
+	} 
+	else if( strcmp( uri, "/.project_exists" ) == 0 && post != nullptr ) {
+		sdw.sd.message_id = SERVER_PROJECT_EXISTS;
 		sdw.sd.message = post;
 		callback_return = callback( &sdw.sd );
 	} 
@@ -274,9 +327,11 @@ static void querySPAndPrepareResponse(
 		binary_data_requested = true;
 	} 
 	else if( strcmp( uri, "/.gantt_data" ) == 0 && is_get ) {
+		error_message("GANTT DATA!!!!");
 		sdw.sd.message_id = SERVER_GET_GANTT;
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
+		error_message("AFTER GANTT DATA!!!!");
 	} 
 	else if( strcmp( uri, "/.input_data" ) == 0 && is_get ) {
 		sdw.sd.message_id = SERVER_GET_INPUT;
@@ -288,11 +343,22 @@ static void querySPAndPrepareResponse(
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
 	}
+	else if( strcmp( uri, "/.sdoc_data" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_GET_SDOC;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+	} 
 	else if( strcmp( uri, "/.model_data" ) == 0 && is_get ) {
 		sdw.sd.message_id = SERVER_GET_MODEL;
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
 	}
+	else if( strcmp( uri, "/.get_ifc" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_GET_IFC;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+		binary_data_requested = true;
+	} 
 	else if( strcmp( uri, "/.get_wexbim" ) == 0 && is_get ) {
 		sdw.sd.message_id = SERVER_GET_WEXBIM;
 		sdw.sd.message = get;
@@ -304,11 +370,21 @@ static void querySPAndPrepareResponse(
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
 	} 
+	else if( strcmp( uri, "/.get_project_last_updates" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_GET_PROJECT_LAST_UPDATES;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+	} 	
 	else if( strcmp( uri, "/.close_project" ) == 0 && is_get ) {
 		sdw.sd.message_id = SERVER_CLOSE_PROJECT;
 		sdw.sd.message = get;
 		callback_return = callback( &sdw.sd );
 	} 
+	else if( strcmp( uri, "/.get_gantt_structs" ) == 0 && is_get ) {
+		sdw.sd.message_id = SERVER_GET_GANTT_STRUCTS;
+		sdw.sd.message = get;
+		callback_return = callback( &sdw.sd );
+	} 	
 
 
 	if( sdw.sd.sp_response_buf == nullptr || 	// Might happen if mistakenly left as nullptr in SP.
@@ -318,8 +394,10 @@ static void querySPAndPrepareResponse(
 		strcpy(response.header, _http_header_bad_request); 
 		error_message( "Bad Request..." );
 	} else if( sdw.sd.sp_response_is_file ) { 	// sd.sp_response_buf contains a file name...
+		error_message("BEFORE readHtmlFileAndPrepareResponse");
 		readHtmlFileAndPrepareResponse( sdw.sd.sp_response_buf, nullptr, response );
 	} else {
+		error_message("RESPONSE RECEIVED!!!!");
 		if( binary_data_requested ) { 	// An image? (or other binary data for future use)
 			set_mime_type(uri, _mime_buf, MIME_BUF_SIZE);
 		} else { 	// 

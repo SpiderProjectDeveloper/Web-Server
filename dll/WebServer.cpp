@@ -138,7 +138,7 @@ int main( void )
     Data.ExePath = nullptr;
     Data.HtmlPath = "html\\";
 
-    hServerDLL = LoadLibrary ("serverweb");
+    hServerDLL = LoadLibrary("serverweb");
     if (hServerDLL != NULL)
     {
         std::cout << "Starting!" << std::endl;

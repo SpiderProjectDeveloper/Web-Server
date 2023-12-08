@@ -13,9 +13,12 @@
 #define SERVER_GET_DASHBOARD 20
 #define SERVER_GET_MODEL 30
 #define SERVER_GET_WEXBIM 40
+#define SERVER_GET_IFC 41
 #define SERVER_GET_PROJECT_PROPS 50
+#define SERVER_GET_PROJECT_LAST_UPDATES 60
 
 #define SERVER_GET_GANTT 100
+#define SERVER_GET_GANTT_STRUCTS 105
 #define SERVER_CHECK_GANTT_SYNCHRO 110 // question whether gantt changed (bool)
 #define SERVER_SAVE_GANTT 150          // comments received from WEB
 
@@ -25,6 +28,18 @@
 
 #define SERVER_SAVE_IMAGE 300
 #define SERVER_GET_IMAGE 310
+
+#define SERVER_CREATE_PROJECT 320
+#define SERVER_PROJECT_EXISTS 321 
+
+#define SERVER_SET_TABLE 330
+#define SERVER_SET_IFC 340
+
+#define SERVER_GET_SDOC 350
+#define SERVER_CHECK_SDOC_SYNCHRO 351
+#define SERVER_SAVE_SDOC 352          
+
+
 // end message_id
 
 struct ServerData {
