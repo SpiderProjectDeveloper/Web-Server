@@ -24,16 +24,16 @@ int get_content_length( char *b, int b_len );
 
 template<class... Args>
 void error_message( Args... args ) {
-  return;
-	/*
-  #ifndef __DEV__
-		return;
-	#endif
+  // return;
+	///*
+  //#ifndef __DEV__
+	//	return;
+	//#endif
 	(std::cout << ... << args) << std::endl;
-	std::fstream log_file("C:\\Users\\~395262\\~esktop\\~ava\\~pider\\serverweb\\log.txt", std::fstream::out | std::fstream::app);
+	std::fstream log_file("C:\\Users\\1395262\\Desktop\\Sava\\Spider\\serverweb\\log.txt", std::fstream::out | std::fstream::app);
 	if( log_file ) {
 			(log_file << ... << args) << std::endl;
 		log_file.close();
 	}
-	*/
+	//*/
 }

@@ -70,6 +70,7 @@ class ServerDataWrapper {
 
 	~ServerDataWrapper() {
 		if( sd.sp_free_response_buf == true ) {
+			error_message("DELETING!!!");
 			delete [] sd.sp_response_buf;
 		}
 	}
